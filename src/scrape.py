@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 import time
 
 
-# Get all images on the page
+# Pull the JSON data corresponding to the page needed
 def get_image_links(page):
     page_urls = []
     url = 'https://www.wikiart.org/en/claude-monet/by-Genre/landscape?json=1&layout=new&page=%d&resultType=masonry' % page
@@ -23,26 +23,26 @@ def get_image_links(page):
     return page_urls
 
 
+# Download the image at the specified link
 def download_link(link, count):
     try:
         savepath = "../images/train/" + str(count) + ".jpg"
-        time.sleep(0.2)  # try not to get a 403
+        time.sleep(0.2)
         urllib.request.urlretrieve(link, savepath)
     except Exception as e:
         print("Failed to gather: " + str(link))
 
 
 def main():
-    image_urls = []
+    image_urls = []     # Store all urls that need to be downloaded
     for i in range(20):
         image_urls += get_image_links(i)
-
-    j = 0
+    count = 0
     for url in image_urls:
-        print(url)
-        print(j)
-        download_link(url, j)
-        j += 1
+        # print(url)
+        print("Gathering image %d out of %d" % (count, len(image_urls)))
+        download_link(url, count)
+        count += 1
 
     print("FINISHED")
 
