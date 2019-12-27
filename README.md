@@ -1,2 +1,7 @@
 # dcgan
-Generic art DCGAN
+
+## Introduction
+This is an attempt at a DCGAN by Thomas Patton. 
+
+## Getting Started
+Make sure to use ```src/scrape.py``` to pull images from Wikiart. This is currently far from optimized, but it works well for pulling the images without the use of libraries like Selenium. This may or may not be optimized in the future.
