@@ -1,0 +1,2 @@
+# dcgan
+Generic art DCGAN
