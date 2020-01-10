@@ -28,16 +28,15 @@ torch.manual_seed(manualSeed)
 dataroot = "../images"        # image locations
 workers = 2
 batch_size = 128
-image_size = 64
+image_size = 128
 nc = 3          # number of channels for training images
 nz = 100        # size of latent vector
-ngf = 64        # size of feature maps in generator
-ndf = 64        # size of feature maps in discriminator
-num_epochs = 500
-dlr = 0.0002    # discrim learning rate
-glr = 0.0002    # generator learning rate
+ngf = 128        # size of feature maps in generator
+ndf = 128        # size of feature maps in discriminator
+num_epochs = 50
+lr = 0.0002     # learning rate
 beta1 = 0.5
-ngpu = 1
+ngpu = 0
 
 
 # Class for our generator, which will generate images
@@ -47,25 +46,29 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(     nz, ngf * 16, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(ngf * 16),
+            nn.ReLU(True),
+            # state size. (ngf*16) x 4 x 4
+            nn.ConvTranspose2d(ngf * 16, ngf * 8, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
+            # state size. (ngf*8) x 8 x 8
             nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d( ngf * 4, ngf * 2, 4, 2, 1, bias=False),
+            # state size. (ngf*4) x 16 x 16
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d( ngf * 2, ngf, 4, 2, 1, bias=False),
+            # state size. (ngf*2) x 32 x 32
+            nn.ConvTranspose2d(ngf * 2,     ngf, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d( ngf, nc, 4, 2, 1, bias=False),
+            # state size. (ngf) x 64 x 64
+            nn.ConvTranspose2d(    ngf,      nc, 4, 2, 1, bias=False),
             nn.Tanh()
-            # state size. (nc) x 64 x 64
+            # state size. (nc) x 128 x 128
         )
 
     def forward(self, input):
@@ -78,24 +81,29 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            # input is (nc) x 128 x 128
+            nn.Conv2d(nc, ndf, 4, stride=2, padding=1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
-            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            # state size. (ndf) x 64 x 64
+            nn.Conv2d(ndf, ndf * 2, 4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(ndf * 2),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            # state size. (ndf*2) x 32 x 32
+            nn.Conv2d(ndf * 2, ndf * 4, 4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            # state size. (ndf*4) x 16 x 16
+            nn.Conv2d(ndf * 4, ndf * 8, 4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            # state size. (ndf*8) x 8 x 8
+            nn.Conv2d(ndf * 8, ndf * 16, 4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(ndf * 16),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*16) x 4 x 4
+            nn.Conv2d(ndf * 16, 1, 4, stride=1, padding=0, bias=False),
             nn.Sigmoid()
+            # state size. 1
         )
 
     def forward(self, input):
@@ -131,11 +139,11 @@ def main():
     print(torch.cuda.is_available())
 
     # Plot some training images
-    real_batch = next(iter(dataloader))
-    plt.figure(figsize=(8,8))
-    plt.axis("off")
-    plt.title("Training Images")
-    plt.imshow(np.transpose(vutils.make_grid(real_batch[0].to(device)[:64], padding=2, normalize=True).cpu(),(1,2,0)))
+    #real_batch = next(iter(dataloader))
+    #plt.figure(figsize=(8,8))
+    #plt.axis("off")
+    #plt.title("Training Images")
+    #plt.imshow(np.transpose(vutils.make_grid(real_batch[0].to(device)[:64], padding=2, normalize=True).cpu(),(1,2,0)))
     #plt.show()    # un-comment to show the training images
 
     # -------------------------------------------------------------------------
@@ -164,15 +172,15 @@ def main():
 
     # Create batch of latent vectors that we will use to visualize
     #  the progression of the generator
-    fixed_noise = torch.randn(64, nz, 1, 1, device=device)
+    fixed_noise = torch.randn(128, nz, 1, 1, device=device)
 
     # Establish convention for real and fake labels during training
-    real_label = 0.9
+    real_label = 1
     fake_label = 0
 
     # Setup Adam optimizers for both G and D
-    optimizerD = optim.Adam(netD.parameters(), lr=dlr, betas=(beta1, 0.999))
-    optimizerG = optim.Adam(netG.parameters(), lr=glr, betas=(beta1, 0.999))
+    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
+    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 
     # -------------------------------------------------------------------------
 
@@ -295,7 +303,7 @@ def main():
 
     # Save our images
     for k in range(len(img_list)):
-        vutils.save_image(img_list[k], "save/unfiled/%d.jpg" % (k))
+        vutils.save_image(img_list[k], "%d.jpg" % (k))
 
 
 
